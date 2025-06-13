@@ -1,0 +1,379 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+  EMERGENCY_RESPONDER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ConsentStatus {
+  GRANTED
+  REVOKED
+  EXPIRED
+}
+
+enum RecordType {
+  MEDICAL_REPORT
+  LAB_RESULT
+  PRESCRIPTION
+  IMAGING
+  VACCINE_RECORD
+  ALLERGY_INFO
+  EMERGENCY_CONTACT
+}
+
+enum AccessType {
+  READ
+  WRITE
+  EMERGENCY
+}
+
+type EmergencyContact {
+  name         String
+  relationship String
+  phoneNumber  String
+  email        String?
+}
+
+type Allergy {
+  allergen      String
+  severity      String // MILD, MODERATE, SEVERE
+  reaction      String
+  diagnosedDate DateTime?
+}
+
+type ChronicCondition {
+  condition     String
+  diagnosedDate DateTime
+  notes         String?
+}
+
+type Medication {
+  name         String
+  dosage       String
+  frequency    String
+  prescribedBy String
+  startDate    DateTime
+  endDate      DateTime?
+}
+
+type VerificationDoc {
+  type       String // LICENSE, DIPLOMA, CERTIFICATION
+  url        String
+  uploadedAt DateTime
+}
+
+type Permission {
+  resourceType String
+  actions      String[] // READ, WRITE, DELETE
+  recordTypes  String[] // Specific record types allowed
+}
+
+model User {
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  email             String    @unique
+  password          String
+  role              UserRole
+  isActive          Boolean   @default(true)
+  emailVerified     DateTime?
+  mfaEnabled        Boolean   @default(false)
+  mfaSecret         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastLogin         DateTime?
+  
+  // Relationships - MongoDB uses string IDs for references
+  patientId         String?   @db.ObjectId
+  doctorId          String?   @db.ObjectId
+  
+  // Related collections will reference this ID
+  
+  @@map("users")
+}
+
+model Patient {
+  id                String               @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String               @unique @db.ObjectId
+  
+  // Personal Information
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime
+  gender            String
+  phoneNumber       String?
+  address           String?
+  emergencyContact  EmergencyContact?
+  
+  // Medical Information (embedded for performance)
+  bloodType         String?
+  allergies         Allergy[]
+  chronicConditions ChronicCondition[]
+  medications       Medication[]
+  
+  // Blockchain
+  blockchainAddress String?
+  
+  // Metadata
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  
+  @@map("patients")
+}
+
+model Doctor {
+  id                 String             @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String             @unique @db.ObjectId
+  
+  // Professional Information
+  firstName          String
+  lastName           String
+  specialization     String
+  licenseNumber      String             @unique
+  hospitalId         String?
+  hospitalName       String?
+  phoneNumber        String?
+  
+  // Verification
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt         DateTime?
+  verificationDocs   VerificationDoc[]
+  
+  // Blockchain
+  blockchainAddress  String?
+  
+  // Metadata
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  
+  @@map("doctors")
+}
+
+model MedicalRecord {
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  patientId         String     @db.ObjectId
+  doctorId          String?    @db.ObjectId
+  
+  // Record Information
+  title             String
+  description       String?
+  recordType        RecordType
+  fileUrl           String     // Off-chain storage URL (encrypted)
+  fileHash          String     // For integrity verification
+  fileName          String
+  fileSize          Int
+  mimeType          String
+  
+  // Blockchain Integration
+  blockchainTxHash  String?    // Transaction hash on blockchain
+  ipfsHash          String?    // IPFS hash if using IPFS
+  
+  // Metadata
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  isEncrypted       Boolean    @default(true)
+  
+  // Tags for easier searching
+  tags              String[]
+  
+  @@map("medical_records")
+}
+
+model ConsentGrant {
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  patientId         String        @db.ObjectId
+  doctorId          String        @db.ObjectId
+  
+  // Consent Details
+  status            ConsentStatus @default(GRANTED)
+  accessType        AccessType    @default(READ)
+  purpose           String        // Why access is needed
+  
+  // Specific permissions (embedded for MongoDB)
+  permissions       Permission[]
+  
+  // Time Management
+  grantedAt         DateTime      @default(now())
+  expiresAt         DateTime?
+  revokedAt         DateTime?
+  
+  // Blockchain
+  blockchainTxHash  String?
+  
+  // Allowed record types and specific record IDs
+  allowedRecordTypes String[]
+  allowedRecordIds   String[]      @db.ObjectId
+  
+  @@map("consent_grants")
+}
+
+model AccessRequest {
+  id            String     @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId      String     @db.ObjectId
+  patientEmail  String     // Patient identifier for initial request
+  patientId     String?    @db.ObjectId // Set after patient is found
+  
+  // Request Details
+  purpose       String
+  accessType    AccessType @default(READ)
+  urgency       String?    // LOW, MEDIUM, HIGH, EMERGENCY
+  
+  // Requested permissions
+  requestedRecordTypes String[]
+  requestedDuration    Int?     // Days
+  
+  // Status
+  status        String     @default("PENDING") // PENDING, APPROVED, DENIED
+  requestedAt   DateTime   @default(now())
+  respondedAt   DateTime?
+  
+  // Response
+  response      String?    // Patient's response/notes
+  
+  @@map("access_requests")
+}
+
+model SharingSettings {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  patientId              String   @unique @db.ObjectId
+  
+  // Sharing Preferences
+  allowEmergencyAccess   Boolean  @default(true)
+  autoApproveSpecialists Boolean  @default(false)
+  defaultConsentDuration Int?     // Days
+  
+  // Data Types preferences (embedded arrays)
+  allowedDataTypes       String[] // Which types of data can be shared
+  restrictedDataTypes    String[] // Which types are restricted
+  allowedSpecializations String[] // Auto-approve these specializations
+  
+  // Emergency settings
+  emergencyContacts      String[] @db.ObjectId // Doctor IDs for emergency access
+  
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  
+  @@map("sharing_settings")
+}
+
+model AccessLog {
+  id                String     @id @default(auto()) @map("_id") @db.ObjectId
+  recordId          String     @db.ObjectId
+  accessorId        String     @db.ObjectId // User who accessed
+  
+  // Access Details
+  accessType        AccessType
+  purpose           String?
+  ipAddress         String?
+  userAgent         String?
+  
+  // What was accessed (for granular logging)
+  accessedFields    String[]   // Which fields were viewed
+  downloadedFiles   String[]   // Which files were downloaded
+  
+  // Timing
+  accessedAt        DateTime   @default(now())
+  duration          Int?       // Seconds spent viewing
+  
+  // Blockchain
+  blockchainTxHash  String?
+  
+  @@map("access_logs")
+}
+
+model AuditLog {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @db.ObjectId
+  
+  // Action Details
+  action            String   // CREATE, UPDATE, DELETE, ACCESS, GRANT, REVOKE
+  resourceType      String   // USER, RECORD, CONSENT, etc.
+  resourceId        String?  @db.ObjectId
+  
+  // Context (embedded object for MongoDB)
+  details           Json?    // Flexible JSON for additional details
+  ipAddress         String?
+  userAgent         String?
+  
+  // Changes made (for UPDATE actions)
+  previousValues    Json?
+  newValues         Json?
+  
+  // Timing
+  timestamp         DateTime @default(now())
+  
+  // Blockchain
+  blockchainTxHash  String?
+  
+  @@map("audit_logs")
+}
+
+model Session {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @db.ObjectId
+  
+  sessionToken String   @unique
+  expires      DateTime
+  deviceInfo   String?
+  ipAddress    String?
+  isActive     Boolean  @default(true)
+  
+  createdAt    DateTime @default(now())
+  lastActivity DateTime @default(now())
+  
+  @@map("sessions")
+}
+
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  senderId    String?  @db.ObjectId
+  recipientId String   @db.ObjectId
+  
+  // Notification Content
+  type        String   // ACCESS_REQUEST, CONSENT_GRANTED, DATA_ACCESSED, etc.
+  title       String
+  message     String
+  data        Json?    // Additional data as JSON
+  
+  // Status
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  
+  // Priority and categorization
+  priority    String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  category    String   // SECURITY, CONSENT, MEDICAL, SYSTEM
+  
+  // Timing
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime? // For time-sensitive notifications
+  
+  @@map("notifications")
+}
+
+model SystemConfig {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  key                   String   @unique
+  value                 Json
+  description           String?
+  
+  // Metadata
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  createdBy             String   @db.ObjectId
+  
+  @@map("system_config")
+}
