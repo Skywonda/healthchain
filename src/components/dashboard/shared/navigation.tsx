@@ -14,12 +14,14 @@ import {
   LogOut,
   Menu,
   X,
-  Bell
+  Bell,
+  TestTube 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth-store';
 import { useNotificationsStore } from '@/stores/notifications-store';
-import { cn } from '@/lib/utils';
+import { WalletStatus } from '@/components/blockchain/wallet-status';
+import { cn, getInitials } from '@/lib/utils';
 
 interface NavigationProps {
   userRole: 'PATIENT' | 'DOCTOR' | 'ADMIN';
@@ -44,6 +46,8 @@ export function Navigation({ userRole }: NavigationProps) {
         { href: '/patient/consent', icon: Shield, label: 'Consent Management' },
         { href: '/patient/sharing', icon: Share2, label: 'Data Sharing' },
         { href: '/patient/audit', icon: Activity, label: 'Access Log' },
+        // Temporary test page - remove in production
+        { href: '/test-wallet', icon: TestTube, label: 'Wallet Test' },
       ];
     }
 
@@ -53,6 +57,8 @@ export function Navigation({ userRole }: NavigationProps) {
         { href: '/doctor/patients', icon: Users, label: 'Patients' },
         { href: '/doctor/requests', icon: Shield, label: 'Access Requests' },
         { href: '/doctor/reports', icon: FileText, label: 'Medical Reports' },
+        // Temporary test page - remove in production
+        { href: '/test-wallet', icon: TestTube, label: 'Wallet Test' },
       ];
     }
 
@@ -62,6 +68,8 @@ export function Navigation({ userRole }: NavigationProps) {
         { href: '/admin/verification', icon: Shield, label: 'Verification' },
         { href: '/admin/system', icon: Settings, label: 'System' },
         { href: '/admin/audit', icon: Activity, label: 'Audit Trail' },
+        // Temporary test page - remove in production
+        { href: '/test-wallet', icon: TestTube, label: 'Wallet Test' },
       ];
     }
 
@@ -146,27 +154,23 @@ export function Navigation({ userRole }: NavigationProps) {
             </Link>
           </nav>
 
+          {/* Wallet status section */}
+          <div className="p-4 border-t border-b">
+            <div className="text-xs font-medium text-gray-700 mb-2">Blockchain</div>
+            <WalletStatus />
+          </div>
+
           {/* User section */}
           <div className="p-4 border-t">
             <div className="flex items-center gap-3 mb-3">
               <div className="h-8 w-8 bg-primary/10 rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium">
-                  {user?.patient ? 
-                    `${user.patient.firstName[0]}${user.patient.lastName[0]}` :
-                    user?.doctor ?
-                    `${user.doctor.firstName[0]}${user.doctor.lastName[0]}` :
-                    'U'
-                  }
+                  {getInitials(user?.firstName, user?.lastName)}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {user?.patient ? 
-                    `${user.patient.firstName} ${user.patient.lastName}` :
-                    user?.doctor ?
-                    `Dr. ${user.doctor.firstName} ${user.doctor.lastName}` :
-                    user?.email
-                  }
+                  {user?.firstName} {user?.lastName}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {user?.email}

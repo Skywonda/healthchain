@@ -6,6 +6,7 @@ import { UserRole } from './types/auth';
 const JWT_SECRET = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET || 'fallback-secret'
 );
+
 const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
   '/patient': ['PATIENT'],
   '/patient/profile': ['PATIENT'],
@@ -55,6 +56,8 @@ interface UserPayload {
   id: string;
   email: string;
   role: UserRole;
+  patientId?: string;
+  doctorId?: string;
   exp?: number;
 }
 
@@ -68,7 +71,9 @@ async function verifyToken(token: string): Promise<UserPayload | null> {
       id: payload.id as string,
       email: payload.email as string,
       role: payload.role as UserRole,
-      exp: payload?.exp
+      patientId: payload.patientId as string | undefined,
+      doctorId: payload.doctorId as string | undefined,
+      exp: payload?.exp as number | undefined
     };
   } catch (error) {
     console.error('JWT verification failed:', error);
@@ -156,6 +161,8 @@ export async function middleware(request: NextRequest) {
     requestHeaders.set('x-user-id', user.id);
     requestHeaders.set('x-user-role', user.role);
     requestHeaders.set('x-user-email', user.email);
+    if (user.patientId) requestHeaders.set('x-patient-id', user.patientId);
+    if (user.doctorId) requestHeaders.set('x-doctor-id', user.doctorId);
 
     return NextResponse.next({
       request: {
@@ -190,10 +197,13 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = getRedirectUrl(user.role);
     return NextResponse.redirect(new URL(redirectUrl, request.url));
   }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-user-id', user.id);
   requestHeaders.set('x-user-role', user.role);
   requestHeaders.set('x-user-email', user.email);
+  if (user.patientId) requestHeaders.set('x-patient-id', user.patientId);
+  if (user.doctorId) requestHeaders.set('x-doctor-id', user.doctorId);
 
   return NextResponse.next({
     request: {
@@ -212,6 +222,8 @@ export function getUserFromHeaders(headers: Headers): UserPayload | null {
   const userId = headers.get('x-user-id');
   const userRole = headers.get('x-user-role');
   const userEmail = headers.get('x-user-email');
+  const patientId = headers.get('x-patient-id');
+  const doctorId = headers.get('x-doctor-id');
 
   if (!userId || !userRole || !userEmail) {
     return null;
@@ -221,6 +233,8 @@ export function getUserFromHeaders(headers: Headers): UserPayload | null {
     id: userId,
     email: userEmail,
     role: userRole as UserPayload['role'],
+    patientId: patientId || undefined,
+    doctorId: doctorId || undefined,
   };
 }
 

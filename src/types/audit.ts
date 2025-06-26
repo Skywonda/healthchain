@@ -3,16 +3,24 @@ import { AccessType } from "./consent";
 export interface AccessLog {
   id: string;
   recordId: string;
-  accessorId: string;
+  record: {
+    title: string;
+    recordType: string;
+  };
+  accessor: {
+    firstName: string;
+    lastName: string;
+    specialization?: string;
+    hospitalName?: string;
+  };
   accessType: AccessType;
   purpose?: string;
   ipAddress?: string;
   userAgent?: string;
   accessedFields: string[];
   downloadedFiles: string[];
-  accessedAt: Date;
+  accessedAt: string;
   duration?: number;
-  blockchainTxHash?: string;
 }
 
 export interface AuditLog {

@@ -20,7 +20,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const { setLoading } = useAuthStore();
+  const { setUser, setLoading } = useAuthStore();
 
   const {
     register,
@@ -34,11 +34,44 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     try {
       setLoading(true);
-      console.log('Login attempt:', data);
+      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', 
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      console.log("login result: ", result)
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Login failed');
+      }
+
+      if (result.requiresMFA) {
+        toast.success('Please enter your MFA code');
+        return;
+      }
+
+      setUser(result.user);
       toast.success('Login successful!');
-      router.push('/dashboard');
+      
+      const redirectMap = {
+        PATIENT: '/patient',
+        DOCTOR: '/doctor',
+        ADMIN: '/admin',
+        EMERGENCY_RESPONDER: '/emergency'
+      };
+
+      const redirectPath = redirectMap[result.user.role as keyof typeof redirectMap] || '/';
+      router.push(redirectPath);
+      
     } catch (error) {
-      toast.error('Login failed. Please try again.');
+      console.error('Login error:', error);
+      toast.error(error instanceof Error ? error.message : 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -86,6 +85,8 @@ type Permission {
 
 model User {
   id                String    @id @default(auto()) @map("_id") @db.ObjectId
+  firstName          String
+  lastName           String
   email             String    @unique
   password          String
   role              UserRole
@@ -97,11 +98,14 @@ model User {
   updatedAt         DateTime  @updatedAt
   lastLogin         DateTime?
   
-  // Relationships - MongoDB uses string IDs for references
-  patientId         String?   @db.ObjectId
-  doctorId          String?   @db.ObjectId
+  patient           Patient?  @relation("UserPatient")
+  doctor            Doctor?   @relation("UserDoctor")
   
-  // Related collections will reference this ID
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  sentNotifications Notification[] @relation("NotificationSender")
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  systemConfigs     SystemConfig[]
   
   @@map("users")
 }
@@ -109,28 +113,28 @@ model User {
 model Patient {
   id                String               @id @default(auto()) @map("_id") @db.ObjectId
   userId            String               @unique @db.ObjectId
+  user              User                 @relation("UserPatient", fields: [userId], references: [id], onDelete: Cascade)
   
-  // Personal Information
-  firstName         String
-  lastName          String
   dateOfBirth       DateTime
   gender            String
   phoneNumber       String?
   address           String?
   emergencyContact  EmergencyContact?
   
-  // Medical Information (embedded for performance)
   bloodType         String?
   allergies         Allergy[]
   chronicConditions ChronicCondition[]
   medications       Medication[]
   
-  // Blockchain
   blockchainAddress String?
   
-  // Metadata
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
+  
+  medicalRecords    MedicalRecord[]      @relation("PatientRecords")
+  consentGrants     ConsentGrant[]       @relation("PatientConsents")
+  accessRequests    AccessRequest[]      @relation("PatientAccessRequests")
+  sharingSettings   SharingSettings?     @relation("PatientSharingSettings")
   
   @@map("patients")
 }
@@ -138,27 +142,26 @@ model Patient {
 model Doctor {
   id                 String             @id @default(auto()) @map("_id") @db.ObjectId
   userId             String             @unique @db.ObjectId
+  user               User               @relation("UserDoctor", fields: [userId], references: [id], onDelete: Cascade)
   
-  // Professional Information
-  firstName          String
-  lastName           String
   specialization     String
   licenseNumber      String             @unique
   hospitalId         String?
   hospitalName       String?
   phoneNumber        String?
   
-  // Verification
   verificationStatus VerificationStatus @default(PENDING)
   verifiedAt         DateTime?
   verificationDocs   VerificationDoc[]
   
-  // Blockchain
   blockchainAddress  String?
   
-  // Metadata
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  
+  medicalRecords     MedicalRecord[]    @relation("DoctorRecords")
+  consentGrants      ConsentGrant[]     @relation("DoctorConsents")
+  accessRequests     AccessRequest[]    @relation("DoctorAccessRequests")
   
   @@map("doctors")
 }
@@ -166,29 +169,29 @@ model Doctor {
 model MedicalRecord {
   id                String     @id @default(auto()) @map("_id") @db.ObjectId
   patientId         String     @db.ObjectId
+  patient           Patient    @relation("PatientRecords", fields: [patientId], references: [id], onDelete: Cascade)
   doctorId          String?    @db.ObjectId
+  doctor            Doctor?    @relation("DoctorRecords", fields: [doctorId], references: [id], onDelete: SetNull)
   
-  // Record Information
   title             String
   description       String?
   recordType        RecordType
-  fileUrl           String     // Off-chain storage URL (encrypted)
-  fileHash          String     // For integrity verification
+  fileUrl           String     
+  fileHash          String     
   fileName          String
   fileSize          Int
   mimeType          String
   
-  // Blockchain Integration
-  blockchainTxHash  String?    // Transaction hash on blockchain
-  ipfsHash          String?    // IPFS hash if using IPFS
+  blockchainTxHash  String?    
+  ipfsHash          String?    
   
-  // Metadata
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
   isEncrypted       Boolean    @default(true)
   
-  // Tags for easier searching
   tags              String[]
+  
+  accessLogs        AccessLog[]
   
   @@map("medical_records")
 }
@@ -196,25 +199,21 @@ model MedicalRecord {
 model ConsentGrant {
   id                String        @id @default(auto()) @map("_id") @db.ObjectId
   patientId         String        @db.ObjectId
+  patient           Patient       @relation("PatientConsents", fields: [patientId], references: [id], onDelete: Cascade)
   doctorId          String        @db.ObjectId
+  doctor            Doctor        @relation("DoctorConsents", fields: [doctorId], references: [id], onDelete: Cascade)
   
-  // Consent Details
   status            ConsentStatus @default(GRANTED)
   accessType        AccessType    @default(READ)
-  purpose           String        // Why access is needed
-  
-  // Specific permissions (embedded for MongoDB)
+  purpose           String        
   permissions       Permission[]
   
-  // Time Management
   grantedAt         DateTime      @default(now())
   expiresAt         DateTime?
   revokedAt         DateTime?
   
-  // Blockchain
   blockchainTxHash  String?
   
-  // Allowed record types and specific record IDs
   allowedRecordTypes String[]
   allowedRecordIds   String[]      @db.ObjectId
   
@@ -224,25 +223,23 @@ model ConsentGrant {
 model AccessRequest {
   id            String     @id @default(auto()) @map("_id") @db.ObjectId
   doctorId      String     @db.ObjectId
-  patientEmail  String     // Patient identifier for initial request
-  patientId     String?    @db.ObjectId // Set after patient is found
+  doctor        Doctor     @relation("DoctorAccessRequests", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientEmail  String     
+  patientId     String?    @db.ObjectId 
+  patient       Patient?   @relation("PatientAccessRequests", fields: [patientId], references: [id], onDelete: Cascade)
   
-  // Request Details
   purpose       String
   accessType    AccessType @default(READ)
-  urgency       String?    // LOW, MEDIUM, HIGH, EMERGENCY
+  urgency       String?    
   
-  // Requested permissions
   requestedRecordTypes String[]
-  requestedDuration    Int?     // Days
+  requestedDuration    Int?     
   
-  // Status
-  status        String     @default("PENDING") // PENDING, APPROVED, DENIED
+  status        String     @default("PENDING") 
   requestedAt   DateTime   @default(now())
   respondedAt   DateTime?
   
-  // Response
-  response      String?    // Patient's response/notes
+  response      String?    
   
   @@map("access_requests")
 }
@@ -250,19 +247,17 @@ model AccessRequest {
 model SharingSettings {
   id                     String   @id @default(auto()) @map("_id") @db.ObjectId
   patientId              String   @unique @db.ObjectId
+  patient                Patient  @relation("PatientSharingSettings", fields: [patientId], references: [id], onDelete: Cascade)
   
-  // Sharing Preferences
   allowEmergencyAccess   Boolean  @default(true)
   autoApproveSpecialists Boolean  @default(false)
-  defaultConsentDuration Int?     // Days
+  defaultConsentDuration Int?     
   
-  // Data Types preferences (embedded arrays)
-  allowedDataTypes       String[] // Which types of data can be shared
-  restrictedDataTypes    String[] // Which types are restricted
-  allowedSpecializations String[] // Auto-approve these specializations
+  allowedDataTypes       String[] 
+  restrictedDataTypes    String[] 
+  allowedSpecializations String[] 
   
-  // Emergency settings
-  emergencyContacts      String[] @db.ObjectId // Doctor IDs for emergency access
+  emergencyContacts      String[] @db.ObjectId
   
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -271,25 +266,23 @@ model SharingSettings {
 }
 
 model AccessLog {
-  id                String     @id @default(auto()) @map("_id") @db.ObjectId
-  recordId          String     @db.ObjectId
-  accessorId        String     @db.ObjectId // User who accessed
+  id                String        @id @default(auto()) @map("_id") @db.ObjectId
+  recordId          String        @db.ObjectId
+  record            MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  accessorId        String        @db.ObjectId 
+  accessor          User          @relation(fields: [accessorId], references: [id], onDelete: Cascade)
   
-  // Access Details
   accessType        AccessType
   purpose           String?
   ipAddress         String?
   userAgent         String?
   
-  // What was accessed (for granular logging)
-  accessedFields    String[]   // Which fields were viewed
-  downloadedFiles   String[]   // Which files were downloaded
+  accessedFields    String[]   
+  downloadedFiles   String[]   
   
-  // Timing
   accessedAt        DateTime   @default(now())
-  duration          Int?       // Seconds spent viewing
+  duration          Int?
   
-  // Blockchain
   blockchainTxHash  String?
   
   @@map("access_logs")
@@ -298,25 +291,21 @@ model AccessLog {
 model AuditLog {
   id                String   @id @default(auto()) @map("_id") @db.ObjectId
   userId            String   @db.ObjectId
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  // Action Details
-  action            String   // CREATE, UPDATE, DELETE, ACCESS, GRANT, REVOKE
-  resourceType      String   // USER, RECORD, CONSENT, etc.
+  action            String   
+  resourceType      String   
   resourceId        String?  @db.ObjectId
   
-  // Context (embedded object for MongoDB)
-  details           Json?    // Flexible JSON for additional details
+  details           Json?    
   ipAddress         String?
   userAgent         String?
   
-  // Changes made (for UPDATE actions)
   previousValues    Json?
   newValues         Json?
   
-  // Timing
   timestamp         DateTime @default(now())
   
-  // Blockchain
   blockchainTxHash  String?
   
   @@map("audit_logs")
@@ -325,6 +314,7 @@ model AuditLog {
 model Session {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   userId       String   @db.ObjectId
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   sessionToken String   @unique
   expires      DateTime
@@ -341,25 +331,23 @@ model Session {
 model Notification {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   senderId    String?  @db.ObjectId
+  sender      User?    @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
   recipientId String   @db.ObjectId
+  recipient   User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   
-  // Notification Content
-  type        String   // ACCESS_REQUEST, CONSENT_GRANTED, DATA_ACCESSED, etc.
+  type        String   
   title       String
   message     String
-  data        Json?    // Additional data as JSON
+  data        Json?    
   
-  // Status
   isRead      Boolean  @default(false)
   readAt      DateTime?
   
-  // Priority and categorization
-  priority    String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
-  category    String   // SECURITY, CONSENT, MEDICAL, SYSTEM
+  priority    String   @default("NORMAL")
+  category    String   
   
-  // Timing
   createdAt   DateTime @default(now())
-  expiresAt   DateTime? // For time-sensitive notifications
+  expiresAt   DateTime? 
   
   @@map("notifications")
 }
@@ -370,10 +358,10 @@ model SystemConfig {
   value                 Json
   description           String?
   
-  // Metadata
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   createdBy             String   @db.ObjectId
+  createdByUser         User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
   
   @@map("system_config")
 }

@@ -45,7 +45,9 @@ export function maskEmail(email: string): string {
   return `${maskedUsername}@${domain}`;
 }
 
-export function getInitials(firstName: string, lastName: string): string {
+export function getInitials(firstName: string | undefined, lastName: string | undefined): string {
+  console.log(firstName, lastName);
+  if (!firstName || !lastName) return 'U';
   return (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
 }
 

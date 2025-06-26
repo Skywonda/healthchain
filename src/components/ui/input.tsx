@@ -59,11 +59,12 @@ export interface SelectProps
   error?: boolean | string | { message?: string };
   label?: string;
   required?: boolean;
+  placeholder?: string;
   options: Array<{ value: string; label: string }>;
 }
 
 const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, error, label, required, options, ...props }, ref) => {
+  ({ className, error, label, required, placeholder, options, ...props }, ref) => {
     const errorMessage = React.useMemo(() => {
       if (!error) return null;
       if (typeof error === 'string') return error;
@@ -90,6 +91,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             className
           )}
           ref={ref}
+          aria-placeholder={placeholder}
           {...props}
         >
           {options.map(option => (

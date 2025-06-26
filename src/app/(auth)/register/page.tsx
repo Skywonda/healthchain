@@ -43,6 +43,9 @@ const SPECIALIZATION_OPTIONS = [
   { value: 'Emergency Medicine', label: 'Emergency Medicine' },
   { value: 'Pediatrics', label: 'Pediatrics' },
   { value: 'Surgery', label: 'Surgery' },
+  { value: 'Neurology', label: 'Neurology' },
+  { value: 'Psychiatry', label: 'Psychiatry' },
+  { value: 'Radiology', label: 'Radiology' },
   { value: 'Other', label: 'Other' },
 ];
 
@@ -101,7 +104,8 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    reset
+    reset,
+    setValue
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -112,47 +116,60 @@ export default function RegisterPage() {
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
     reset({ role });
+    setValue('role', role);
   };
 
   const onSubmit = async (data: PatientRegistrationForm | DoctorRegistrationForm) => {
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, value.toString());
-        }
-      });
+      const submissionData = {
+        ...data,
+        role: selectedRole,
+      };
 
-      if (selectedRole === 'DOCTOR' && verificationFiles.length > 0) {
-        verificationFiles.forEach((file, index) => {
-          formData.append(`verificationDoc${index}`, file);
-        });
+      if (selectedRole === 'PATIENT') {
+        const patientData = data as PatientRegistrationForm;
+        const patientSubmissionData = submissionData as PatientRegistrationForm;
+        patientSubmissionData.emergencyContact = patientData.emergencyContact || {
+          name: '',
+          relationship: '',
+          phoneNumber: ''
+        };
       }
 
       const response = await fetch('/api/auth/register', {
         method: 'POST',
-        body: formData,
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(submissionData),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
+        if (result.errors && Array.isArray(result.errors)) {
+          result.errors.forEach((error: any) => {
+            toast.error(`${error.field}: ${error.message}`);
+          });
+          return;
+        }
         throw new Error(result.message || 'Registration failed');
       }
 
       toast.success(
         selectedRole === 'DOCTOR' 
-          ? 'Registration successful! Your account is pending verification.'
-          : 'Registration successful! You can now log in.'
+          ? 'Registration successful! Your account is pending verification. You will be notified once approved.'
+          : 'Registration successful! You can now log in to your account.'
       );
 
       router.push('/login');
+      
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error(error instanceof Error ? error.message : 'Registration failed');
+      toast.error(error instanceof Error ? error.message : 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -160,7 +177,26 @@ export default function RegisterPage() {
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setVerificationFiles(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      
+      const validFiles = files.filter(file => {
+        const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+        const maxSize = 10 * 1024 * 1024; 
+        
+        if (!validTypes.includes(file.type)) {
+          toast.error(`${file.name}: Invalid file type. Please upload PDF, JPG, JPEG, or PNG files.`);
+          return false;
+        }
+        
+        if (file.size > maxSize) {
+          toast.error(`${file.name}: File too large. Maximum size is 10MB.`);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      setVerificationFiles(validFiles);
     }
   };
 
@@ -184,7 +220,6 @@ export default function RegisterPage() {
         </CardHeader>
         <CardContent className="px-4 pb-6 sm:px-8 sm:pb-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {/* Role Selection */}
             <div className="space-y-4">
               <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 <span className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xs font-bold flex-shrink-0">1</span>
@@ -313,7 +348,7 @@ export default function RegisterPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </span>
-                      Emergency Contact
+                      Emergency Contact (Optional)
                     </h3>
                     <Input
                       {...register('emergencyContact.name')}
@@ -368,14 +403,19 @@ export default function RegisterPage() {
                   />
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Verification Documents</label>
+                    <label className="text-sm font-medium text-gray-700">
+                      Verification Documents <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-gray-600 mb-3">
+                      Upload your medical license, diploma, or professional certifications for verification
+                    </p>
                     <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 sm:p-8 text-center hover:border-blue-400 transition-colors bg-gray-50/50">
                       <Upload className="mx-auto h-8 w-8 sm:h-10 sm:w-10 text-gray-400 mb-3" />
                       <label className="cursor-pointer">
                         <span className="text-sm text-gray-600 font-medium">
                           Click to upload medical license, diploma, or certifications
                         </span>
-                        <p className="text-xs text-gray-500 mt-1">PDF, JPG, JPEG, or PNG (Max 10MB)</p>
+                        <p className="text-xs text-gray-500 mt-1">PDF, JPG, JPEG, or PNG (Max 10MB each)</p>
                         <input
                           type="file"
                           multiple

@@ -15,8 +15,6 @@ export interface BaseUser {
 export interface PatientProfile {
   id: string;
   userId: string;
-  firstName: string;
-  lastName: string;
   dateOfBirth: Date;
   gender: string;
   phoneNumber?: string;
@@ -34,8 +32,6 @@ export interface PatientProfile {
 export interface DoctorProfile {
   id: string;
   userId: string;
-  firstName: string;
-  lastName: string;
   specialization: string;
   licenseNumber: string;
   hospitalId?: string;
