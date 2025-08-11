@@ -15,6 +15,16 @@ export const RECORD_TYPES = {
   EMERGENCY_CONTACT: 'Emergency Contact',
 } as const;
 
+export const RECORD_TYPE_OPTIONS = [
+  { value: "", label: "All Types" },
+  { value: "MEDICAL_REPORT", label: "Medical Report" },
+  { value: "LAB_RESULT", label: "Lab Result" },
+  { value: "PRESCRIPTION", label: "Prescription" },
+  { value: "IMAGING", label: "Medical Imaging" },
+  { value: "VACCINE_RECORD", label: "Vaccine Record" },
+  { value: "ALLERGY_INFO", label: "Allergy Information" },
+];
+
 export const ACCESS_TYPES = {
   READ: 'Read Only',
   WRITE: 'Read & Write',

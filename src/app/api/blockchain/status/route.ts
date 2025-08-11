@@ -11,10 +11,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Transaction hash required' }, { status: 400 });
     }
 
-    const blockchainService = getBlockchainService();
-    const status = await blockchainService.getTransactionStatus(txHash);
-
-    return NextResponse.json({ txHash, status });
+    try {
+      const blockchainService = getBlockchainService();
+      const status = await blockchainService.getTransactionStatus(txHash);
+      return NextResponse.json({ txHash, status });
+    } catch (error) {
+      console.error('Blockchain status error:', error);
+      return NextResponse.json({ message: 'Failed to get transaction status', error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    }
 
   } catch (error) {
     console.error('Blockchain status error:', error);

@@ -6,6 +6,7 @@ async function main() {
 
   console.log("HealthChain deployed to:", healthChain.address);
 
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('fs');
   const contractData = {
     address: healthChain.address,

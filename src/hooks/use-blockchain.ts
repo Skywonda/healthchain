@@ -1,12 +1,17 @@
-// hooks/use-blockchain.ts
+
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { getBlockchainService } from '@/lib/blockchain';
 import { useBlockchainStore } from '@/stores/blockchain-store';
 import { useAuthStore } from '@/stores/auth-store';
-import type { WalletConnection, BlockchainTransaction } from '@/types/blockchain';
+import type {  SmartContractEvent } from '@/types/blockchain';
 import type { RecordType } from '@/types/medical-records';
-import { AccessType } from '@prisma/client';
+import { AccessType } from '@/types/consent';
+
+interface Ethereum {
+  on(event: string, listener: (...args: unknown[]) => void): void;
+  removeListener(event: string, listener: (...args: unknown[]) => void): void;
+}
 
 export function useBlockchain() {
   const blockchainStore = useBlockchainStore();
@@ -15,26 +20,36 @@ export function useBlockchain() {
 
   const connectWallet = useCallback(async (): Promise<boolean> => {
     if (blockchainStore.wallet?.isConnected) return true;
-
     blockchainStore.setConnecting(true);
-    
     try {
       const walletConnection = await service.connectWallet();
-      blockchainStore.setWallet(walletConnection);
-      
-      if (authStore.user) {
-        await service.registerUser(
-          walletConnection.address, 
-          authStore.user.role as 'PATIENT' | 'DOCTOR'
-        );
+      // blockchainStore.setWallet(walletConnection);
+      // if (authStore.user) {
+      //   await service.registerUser(
+      //     walletConnection.address,
+      //     authStore.user.role as 'PATIENT' | 'DOCTOR'
+      //   );
+      // }
+      // setupEventListeners();
+
+      if (walletConnection) {
+        blockchainStore.setWallet(walletConnection);
+        if (authStore.user) {
+          await service.registerUser(
+            walletConnection.address,
+            authStore.user.role as 'PATIENT' | 'DOCTOR'
+          );
+        }
+        setupEventListeners();
+        return true;
       }
-      
-      setupEventListeners();
-      toast.success('Wallet connected successfully');
-      return true;
-    } catch (error) {
-      console.error('Wallet connection failed:', error);
       toast.error('Failed to connect wallet');
+      return false;
+    } catch (error) {
+      console.log("error", error);
+      if (!blockchainStore.wallet || !blockchainStore.wallet.isConnected) {
+        toast.error('Failed to connect wallet');
+      }
       return false;
     } finally {
       blockchainStore.setConnecting(false);
@@ -42,111 +57,75 @@ export function useBlockchain() {
   }, [service, blockchainStore, authStore.user]);
 
   const disconnectWallet = useCallback(() => {
+    const wasConnected = blockchainStore.wallet?.isConnected;
     service.disconnect();
     blockchainStore.disconnect();
-    toast.success('Wallet disconnected');
+    if (wasConnected) {
+      toast.success('Wallet disconnected');
+    }
   }, [service, blockchainStore]);
 
-  const createMedicalRecord = useCallback(async (
-    file: File,
-    recordType: RecordType,
-    metadata: any
-  ) => {
+  const createMedicalRecord = useCallback(async (file: File, recordType: RecordType, metadata: unknown) => {
     if (!blockchainStore.wallet?.isConnected) {
-      throw new Error('Wallet not connected');
+      toast.error('Connect your wallet first');
+      return;
     }
-
-    blockchainStore.setLoading(true);
-    
     try {
       const result = await service.createMedicalRecord(file, recordType, metadata);
       blockchainStore.addTransaction(result.transaction);
+      toast.success('Medical record created');
       return result;
-    } catch (error) {
-      console.error('Create record error:', error);
-      throw error;
-    } finally {
-      blockchainStore.setLoading(false);
+    } catch {
+      toast.error('Failed to create record');
     }
-  }, [service, blockchainStore]);
+  }, [service, blockchainStore.wallet]);
 
-  const grantConsent = useCallback(async (
-    doctorAddress: string,
-    recordIds: string[],
-    accessType: AccessType,
-    duration: number,
-    purpose: string
-  ) => {
+  const grantConsent = useCallback(async (doctorAddress: string, recordIds: string[], accessType: AccessType, duration: number, purpose: string) => {
     if (!blockchainStore.wallet?.isConnected) {
-      throw new Error('Wallet not connected');
+      toast.error('Connect your wallet first');
+      return;
     }
-
-    blockchainStore.setLoading(true);
-    
     try {
-      const result = await service.grantConsent(
-        doctorAddress,
-        recordIds,
-        accessType,
-        duration,
-        purpose
-      );
+      const result = await service.grantConsent(doctorAddress, recordIds, accessType, duration, purpose);
       blockchainStore.addTransaction(result.transaction);
+      toast.success('Consent granted');
       return result;
-    } catch (error) {
-      console.error('Grant consent error:', error);
-      throw error;
-    } finally {
-      blockchainStore.setLoading(false);
+    } catch {
+      toast.error('Failed to grant consent');
     }
-  }, [service, blockchainStore]);
+  }, [service, blockchainStore.wallet]);
 
   const revokeConsent = useCallback(async (consentId: string) => {
     if (!blockchainStore.wallet?.isConnected) {
-      throw new Error('Wallet not connected');
+      toast.error('Connect your wallet first');
+      return;
     }
-
-    blockchainStore.setLoading(true);
-    
     try {
-      const transaction = await service.revokeConsent(consentId);
-      blockchainStore.addTransaction(transaction);
-      return transaction;
-    } catch (error) {
-      console.error('Revoke consent error:', error);
-      throw error;
-    } finally {
-      blockchainStore.setLoading(false);
+      const tx = await service.revokeConsent(consentId);
+      blockchainStore.addTransaction(tx);
+      toast.success('Consent revoked');
+      return tx;
+    } catch {
+      toast.error('Failed to revoke consent');
     }
-  }, [service, blockchainStore]);
+  }, [service, blockchainStore.wallet]);
 
-  const accessRecord = useCallback(async (
-    recordId: string,
-    purpose: string,
-    encryptionKey: string
-  ) => {
+  const accessRecord = useCallback(async (recordId: string, purpose: string, encryptionKey: string) => {
     if (!blockchainStore.wallet?.isConnected) {
-      throw new Error('Wallet not connected');
+      toast.error('Connect your wallet first');
+      return;
     }
-
-    blockchainStore.setLoading(true);
-    
     try {
       const result = await service.accessRecord(recordId, purpose, encryptionKey);
       blockchainStore.addTransaction(result.transaction);
+      toast.success('Record accessed');
       return result;
-    } catch (error) {
-      console.error('Access record error:', error);
-      throw error;
-    } finally {
-      blockchainStore.setLoading(false);
+    } catch {
+      toast.error('Failed to access record');
     }
-  }, [service, blockchainStore]);
+  }, [service, blockchainStore.wallet]);
 
-  const getPatientRecords = useCallback(async (patientAddress?: string) => {
-    const address = patientAddress || blockchainStore.wallet?.address;
-    if (!address) throw new Error('No patient address available');
-    
+  const getPatientRecords = useCallback(async (address: string) => {
     return await service.getPatientRecords(address);
   }, [service, blockchainStore.wallet]);
 
@@ -159,85 +138,77 @@ export function useBlockchain() {
   }, [service]);
 
   const setupEventListeners = useCallback(() => {
-    service.onEvent('RecordCreated', (event: any) => {
-      blockchainStore.addEvent(event);
+    service.onEvent('RecordCreated', (event: unknown) => {
+      blockchainStore.addEvent(event as SmartContractEvent);
       toast.success('Medical record created successfully');
     });
-
-    service.onEvent('ConsentGranted', (event: any) => {
-      blockchainStore.addEvent(event);
+    service.onEvent('ConsentGranted', (event: unknown) => {
+      blockchainStore.addEvent(event as SmartContractEvent);
       toast.success('Consent granted successfully');
     });
-
-    service.onEvent('ConsentRevoked', (event: any) => {
-      blockchainStore.addEvent(event);
+    service.onEvent('ConsentRevoked', (event: unknown) => {
+      blockchainStore.addEvent(event as SmartContractEvent);
       toast.success('Consent revoked successfully');
     });
-
-    service.onEvent('RecordAccessed', (event: any) => {
-      blockchainStore.addEvent(event);
+    service.onEvent('RecordAccessed', (event: unknown) => {
+      blockchainStore.addEvent(event as SmartContractEvent);
     });
   }, [service, blockchainStore]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).ethereum) {
-      const handleAccountsChanged = (accounts: string[]) => {
-        if (accounts.length === 0) {
-          disconnectWallet();
-        } else if (accounts[0] !== blockchainStore.wallet?.address) {
-          connectWallet();
-        }
-      };
-
-      const handleChainChanged = () => {
-        window.location.reload();
-      };
-
-      (window as any).ethereum.on('accountsChanged', handleAccountsChanged);
-      (window as any).ethereum.on('chainChanged', handleChainChanged);
-
-      return () => {
-        (window as any).ethereum.removeListener('accountsChanged', handleAccountsChanged);
-        (window as any).ethereum.removeListener('chainChanged', handleChainChanged);
-      };
+    if (typeof window !== 'undefined') {
+      const ethereum = (window as unknown as { ethereum?: unknown }).ethereum as Ethereum | undefined;
+      if (ethereum) {
+        const handleAccountsChanged = (...args: unknown[]) => {
+          const accounts = args[0] as string[];
+          if (accounts.length === 0) {
+            disconnectWallet();
+          } else if (accounts[0] !== blockchainStore.wallet?.address) {
+            connectWallet();
+          }
+        };
+        const handleChainChanged = () => {
+          window.location.reload();
+        };
+        ethereum.on('accountsChanged', handleAccountsChanged);
+        ethereum.on('chainChanged', handleChainChanged);
+        return () => {
+          ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          ethereum.removeListener('chainChanged', handleChainChanged);
+        };
+      }
     }
   }, [blockchainStore.wallet, connectWallet, disconnectWallet]);
 
+  useEffect(() => {
+    if (blockchainStore.wallet && blockchainStore.wallet.isConnected) {
+      connectWallet();
+    }
+  }, []);
+
   return {
-    // Wallet state
     isConnected: blockchainStore.wallet?.isConnected || false,
     isConnecting: blockchainStore.isConnecting,
     isLoading: blockchainStore.isLoading,
     address: blockchainStore.wallet?.address,
     chainId: blockchainStore.wallet?.chainId,
-    
-    // Wallet actions
     connectWallet,
     disconnectWallet,
-    
-    // Blockchain actions
     createMedicalRecord,
     grantConsent,
     revokeConsent,
     accessRecord,
-    
-    // Query functions
     getPatientRecords,
     getRecordDetails,
     isConsentValid,
-    
-    // Transactions and events
     transactions: blockchainStore.transactions,
     events: blockchainStore.events,
-    
-    // Service instance
     service,
   };
 }
 
 export function useWalletConnection() {
   const { isConnected, isConnecting, connectWallet, disconnectWallet, address } = useBlockchain();
-  
   return {
     isConnected,
     isConnecting,

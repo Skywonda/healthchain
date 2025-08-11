@@ -7,6 +7,7 @@ import { WalletConnect } from '@/components/blockchain/wallet-connect';
 import { TransactionStatus } from '@/components/blockchain/transaction-status';
 import { useBlockchain } from '@/hooks/use-blockchain';
 import { CheckCircle, AlertCircle, Loader2, Wallet } from 'lucide-react';
+import { Navigation } from '@/components/dashboard/shared/navigation';
 
 export default function WalletTestPage() {
   const {
@@ -128,6 +129,7 @@ export default function WalletTestPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
+      <Navigation userRole="PATIENT" />
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">

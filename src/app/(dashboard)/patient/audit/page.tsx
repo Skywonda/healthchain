@@ -209,9 +209,9 @@ export default function PatientAuditPage() {
       
       <main className="lg:pl-64">
         <div className="px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">Access Activity</h1>
-            <p className="text-gray-600">
+          <div className="mb-8 rounded-lg px-6 py-4 bg-gradient-to-r from-blue-100 to-green-100 border-b shadow dark:bg-gradient-to-r dark:from-blue-900 dark:to-green-900">
+            <h1 className="text-2xl font-bold text-blue-900 dark:text-blue-200">Access Activity</h1>
+            <p className="text-green-800 dark:text-green-200">
               Monitor who has accessed your medical records
             </p>
           </div>

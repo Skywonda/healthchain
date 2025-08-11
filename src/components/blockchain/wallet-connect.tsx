@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Wallet, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { Wallet, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useWalletConnection } from '@/hooks/use-blockchain';
@@ -12,12 +12,14 @@ interface WalletConnectProps {
   showCard?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'icon';
   variant?: 'default' | 'outline' | 'secondary';
+  onConnectSuccess?: () => void;
 }
 
 export function WalletConnect({ 
   showCard = false, 
   size = 'md',
-  variant = 'default' 
+  variant = 'default',
+  onConnectSuccess
 }: WalletConnectProps) {
   const { isConnected, isConnecting, address, connect, disconnect } = useWalletConnection();
   const [error, setError] = useState<string>('');
@@ -26,11 +28,18 @@ export function WalletConnect({
     setError('');
     try {
       const success = await connect();
-      if (!success) {
+      if (success && onConnectSuccess) {
+        onConnectSuccess();
+      }
+      if (!success && !isConnected) {
         setError('Failed to connect wallet');
+      } else if (isConnected) {
+        setError('');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connection failed');
+      if (!isConnected) {
+        setError(err instanceof Error ? err.message : 'Connection failed');
+      }
     }
   };
 

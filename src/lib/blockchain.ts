@@ -1,4 +1,3 @@
-// lib/blockchain.ts
 import { ethers } from "ethers";
 import { getIPFSService } from "./ipfs";
 import { EncryptionService } from "./encryption";
@@ -9,6 +8,26 @@ import type {
 } from "@/types/blockchain";
 import type { RecordType } from "@/types/medical-records";
 import { AccessType } from "@/types/consent";
+import { Event } from "ethers";
+
+declare global {
+  interface Window {
+    ethereum?: {
+      request: (args: {
+        method: string;
+        params?: unknown[];
+      }) => Promise<unknown>;
+    };
+  }
+}
+
+interface RecordAccessLog {
+  accessor: string;
+  recordId: string;
+  accessType: number;
+  timestamp: number;
+  purpose: string;
+}
 
 const HEALTHCHAIN_ABI = [
   "function createMedicalRecord(string ipfsHash, string metadataHash, uint8 recordType) returns (uint256)",
@@ -52,7 +71,7 @@ export class BlockchainService {
   private contract: ethers.Contract;
   private signer: ethers.Signer | null = null;
   private ipfsService = getIPFSService();
-  private eventListeners: Map<string, Function[]> = new Map();
+  private eventListeners: Map<string, Array<(...args: unknown[]) => void>> = new Map();
 
   constructor(private contractAddress: string, private providerUrl: string) {
     this.provider = new ethers.providers.JsonRpcProvider(providerUrl);
@@ -86,7 +105,7 @@ export class BlockchainService {
       const network = await this.provider.getNetwork();
 
       return {
-        address: this.signer.address,
+        address: await this.signer.getAddress(),
         provider: "Private Key",
         chainId: network.chainId,
         isConnected: true,
@@ -99,7 +118,7 @@ export class BlockchainService {
   async createMedicalRecord(
     file: File,
     recordType: RecordType,
-    metadata: any
+    metadata: unknown
   ): Promise<{
     recordId: string;
     transaction: BlockchainTransaction;
@@ -118,7 +137,7 @@ export class BlockchainService {
     );
 
     const receipt = await tx.wait();
-    const event = receipt.events?.find((e: any) => e.event === "RecordCreated");
+    const event = receipt.events?.find((e: Event) => e.event === "RecordCreated");
     const recordId = event?.args?.recordId?.toString();
 
     const transaction: BlockchainTransaction = {
@@ -162,7 +181,7 @@ export class BlockchainService {
 
     const receipt = await tx.wait();
     const event = receipt.events?.find(
-      (e: any) => e.event === "ConsentGranted"
+      (e: Event) => e.event === "ConsentGranted"
     );
     const consentId = event?.args?.consentId?.toString();
 
@@ -271,12 +290,12 @@ export class BlockchainService {
 
   async getPatientRecords(patientAddress: string): Promise<string[]> {
     const recordIds = await this.contract.getPatientRecords(patientAddress);
-    return recordIds.map((id: any) => id.toString());
+    return recordIds.map((id: string) => id.toString());
   }
 
   async getPatientConsents(patientAddress: string): Promise<string[]> {
     const consentIds = await this.contract.getPatientConsents(patientAddress);
-    return consentIds.map((id: any) => id.toString());
+    return consentIds.map((id: string) => id.toString());
   }
 
   async getRecordDetails(recordId: string): Promise<{
@@ -301,16 +320,16 @@ export class BlockchainService {
     }
   }
 
-  async getRecordAccessLogs(recordId: string): Promise<any[]> {
+  async getRecordAccessLogs(recordId: string): Promise<RecordAccessLog[]> {
     try {
       const logs = await this.contract.getRecordAccessLogs(
         ethers.BigNumber.from(recordId)
       );
-      return logs.map((log: any) => ({
+      return logs.map((log: RecordAccessLog) => ({
         accessor: log.accessor,
         recordId: log.recordId.toString(),
         accessType: log.accessType,
-        timestamp: log.timestamp.toNumber(),
+        timestamp: log.timestamp,
         purpose: log.purpose,
       }));
     } catch (error) {
@@ -350,7 +369,7 @@ export class BlockchainService {
     };
   }
 
-  onEvent(eventName: string, callback: Function): void {
+  onEvent(eventName: string, callback: (...args: unknown[]) => void): void {
     if (!this.eventListeners.has(eventName)) {
       this.eventListeners.set(eventName, []);
     }
@@ -372,7 +391,7 @@ export class BlockchainService {
     });
   }
 
-  removeEventListener(eventName: string, callback: Function): void {
+  removeEventListener(eventName: string, callback: (...args: unknown[]) => void): void {
     const listeners = this.eventListeners.get(eventName);
     if (listeners) {
       const index = listeners.indexOf(callback);
@@ -380,7 +399,7 @@ export class BlockchainService {
         listeners.splice(index, 1);
       }
     }
-    this.contract.off(eventName, callback as any);
+    this.contract.off(eventName, callback as (...args: unknown[]) => void);
   }
 
   async getTransactionStatus(
@@ -395,7 +414,7 @@ export class BlockchainService {
     }
   }
 
-  async estimateGas(functionName: string, ...args: any[]): Promise<string> {
+  async estimateGas(functionName: string, ...args: unknown[]): Promise<string> {
     try {
       const gasEstimate = await this.contract.estimateGas[functionName](
         ...args

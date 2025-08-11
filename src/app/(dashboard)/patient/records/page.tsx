@@ -1,154 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { 
   FileText, 
   Upload, 
-  Download, 
-  Eye, 
   Search, 
-  Filter,
   Plus,
   Calendar,
-  Tag,
-  File,
-  Image,
-  FileBarChart,
-  Pill,
-  Heart
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { Navigation } from '@/components/dashboard/shared/navigation';
 import { useAuthStore } from '@/stores/auth-store';
-import { formatDate, formatFileSize, cn } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
 import UploadRecord from '@/components/dashboard/patient/upload-record';
+import { MedicalRecord } from '@/types/medical-records';
+import RecordCard from '@/components/dashboard/patient/record-card';
+import { RECORD_TYPE_OPTIONS } from '@/lib/constants';
+import { WalletConnect } from '@/components/blockchain/wallet-connect';
+import { RequireWallet } from '@/components/blockchain/require-wallet';
 
-interface MedicalRecord {
-  id: string;
-  title: string;
-  description?: string;
-  recordType: string;
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  createdAt: string;
-  tags: string[];
-  doctor?: {
-    firstName: string;
-    lastName: string;
-    specialization: string;
-  };
-}
-
-const RECORD_TYPES = [
-  { value: '', label: 'All Types' },
-  { value: 'MEDICAL_REPORT', label: 'Medical Report' },
-  { value: 'LAB_RESULT', label: 'Lab Result' },
-  { value: 'PRESCRIPTION', label: 'Prescription' },
-  { value: 'IMAGING', label: 'Medical Imaging' },
-  { value: 'VACCINE_RECORD', label: 'Vaccine Record' },
-  { value: 'ALLERGY_INFO', label: 'Allergy Information' },
-];
-
-const getRecordIcon = (recordType: string) => {
-  switch (recordType) {
-    case 'MEDICAL_REPORT': return FileText;
-    case 'LAB_RESULT': return FileBarChart;
-    case 'PRESCRIPTION': return Pill;
-    case 'IMAGING': return Image;
-    case 'VACCINE_RECORD': return Heart;
-    case 'ALLERGY_INFO': return Heart;
-    default: return File;
-  }
-};
-
-const getRecordColor = (recordType: string) => {
-  switch (recordType) {
-    case 'MEDICAL_REPORT': return 'bg-blue-100 text-blue-700';
-    case 'LAB_RESULT': return 'bg-green-100 text-green-700';
-    case 'PRESCRIPTION': return 'bg-purple-100 text-purple-700';
-    case 'IMAGING': return 'bg-orange-100 text-orange-700';
-    case 'VACCINE_RECORD': return 'bg-red-100 text-red-700';
-    case 'ALLERGY_INFO': return 'bg-yellow-100 text-yellow-700';
-    default: return 'bg-gray-100 text-gray-700';
-  }
-};
-
-const RecordCard = ({ record }: { record: MedicalRecord }) => {
-  const Icon = getRecordIcon(record.recordType);
-  const colorClass = getRecordColor(record.recordType);
-
-  return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className={cn('p-2 rounded-lg', colorClass)}>
-              <Icon className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">{record.title}</h3>
-              <p className="text-sm text-gray-600">
-                {RECORD_TYPES.find(t => t.value === record.recordType)?.label}
-              </p>
-            </div>
-          </div>
-          <div className="flex space-x-2">
-            <Button size="sm" variant="outline">
-              <Eye className="h-4 w-4 mr-1" />
-              View
-            </Button>
-            <Button size="sm" variant="outline">
-              <Download className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {record.description && (
-          <p className="text-sm text-gray-600 mb-3">{record.description}</p>
-        )}
-
-        <div className="grid grid-cols-2 gap-4 text-xs text-gray-500 mb-3">
-          <div>
-            <span className="font-medium">File:</span> {record.fileName}
-          </div>
-          <div>
-            <span className="font-medium">Size:</span> {formatFileSize(record.fileSize)}
-          </div>
-          <div>
-            <span className="font-medium">Date:</span> {formatDate(record.createdAt)}
-          </div>
-          {record.doctor && (
-            <div>
-              <span className="font-medium">Doctor:</span> Dr. {record.doctor.firstName} {record.doctor.lastName}
-            </div>
-          )}
-        </div>
-
-        {record.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {record.tags.map((tag, index) => (
-              <span 
-                key={index}
-                className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
 
 export default function PatientRecordsPage() {
   const { user } = useAuthStore();
-  const router = useRouter();
   const searchParams = useSearchParams();
   
   const [records, setRecords] = useState<MedicalRecord[]>([]);
@@ -262,20 +137,13 @@ export default function PatientRecordsPage() {
       <main className="lg:pl-64">
         <div className="px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">My Medical Records</h1>
-              <p className="text-gray-600">
+          <div className="flex flex-col items-center justify-center mb-8 px-6 pt-4 pb-8 bg-gradient-to-r from-blue-100 to-green-100 border-b shadow dark:bg-gradient-to-r dark:from-blue-900 dark:to-green-900 gap-4 relative">
+            <div className="absolute left-6 top-4">
+              <h1 className="text-2xl font-bold text-blue-900 dark:text-blue-200">My Medical Records</h1>
+              <p className="text-green-800 dark:text-green-200">
                 View and manage your medical documents
               </p>
             </div>
-            <Button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Upload Record
-            </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -291,7 +159,7 @@ export default function PatientRecordsPage() {
             <Select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              options={RECORD_TYPES}
+              options={RECORD_TYPE_OPTIONS}
               label=""
               placeholder="Filter by type"
             />
@@ -306,37 +174,39 @@ export default function PatientRecordsPage() {
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600 mt-4">Loading your records...</p>
-            </div>
-          ) : filteredRecords.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredRecords.map((record) => (
-                <RecordCard key={record.id} record={record} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {records.length === 0 ? 'No records found' : 'No records match your filters'}
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {records.length === 0 
-                  ? 'Upload your first medical record to get started'
-                  : 'Try adjusting your search or filter criteria'
-                }
-              </p>
-              {records.length === 0 && (
-                <Button onClick={() => setShowUploadModal(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload First Record
-                </Button>
-              )}
-            </div>
-          )}
+          <RequireWallet>
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-600 mt-4">Loading your records...</p>
+              </div>
+            ) : filteredRecords.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredRecords.map((record) => (
+                  <RecordCard key={record.id} record={record} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {records.length === 0 ? 'No records found' : 'No records match your filters'}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {records.length === 0 
+                    ? 'Upload your first medical record to get started'
+                    : 'Try adjusting your search or filter criteria'
+                  }
+                </p>
+                {records.length === 0 && (
+                  <Button onClick={() => setShowUploadModal(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload First Record
+                  </Button>
+                )}
+              </div>
+            )}
+          </RequireWallet>
         </div>
       </main>
 

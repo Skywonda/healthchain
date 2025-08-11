@@ -84,284 +84,285 @@ type Permission {
 }
 
 model User {
-  id                String    @id @default(auto()) @map("_id") @db.ObjectId
-  firstName          String
-  lastName           String
-  email             String    @unique
-  password          String
-  role              UserRole
-  isActive          Boolean   @default(true)
-  emailVerified     DateTime?
-  mfaEnabled        Boolean   @default(false)
-  mfaSecret         String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  lastLogin         DateTime?
-  
-  patient           Patient?  @relation("UserPatient")
-  doctor            Doctor?   @relation("UserDoctor")
-  
-  sessions          Session[]
-  auditLogs         AuditLog[]
-  sentNotifications Notification[] @relation("NotificationSender")
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  firstName     String
+  lastName      String
+  email         String    @unique
+  password      String
+  role          UserRole
+  isActive      Boolean   @default(true)
+  emailVerified DateTime?
+  mfaEnabled    Boolean   @default(false)
+  mfaSecret     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLogin     DateTime?
+
+  patient Patient? @relation("UserPatient")
+  doctor  Doctor?  @relation("UserDoctor")
+
+  sessions              Session[]
+  auditLogs             AuditLog[]
+  sentNotifications     Notification[] @relation("NotificationSender")
   receivedNotifications Notification[] @relation("NotificationRecipient")
-  systemConfigs     SystemConfig[]
-  
+  systemConfigs         SystemConfig[]
+  AccessLog             AccessLog[]
+
   @@map("users")
 }
 
 model Patient {
-  id                String               @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String               @unique @db.ObjectId
-  user              User                 @relation("UserPatient", fields: [userId], references: [id], onDelete: Cascade)
-  
-  dateOfBirth       DateTime
-  gender            String
-  phoneNumber       String?
-  address           String?
-  emergencyContact  EmergencyContact?
-  
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @unique @db.ObjectId
+  user   User   @relation("UserPatient", fields: [userId], references: [id], onDelete: Cascade)
+
+  dateOfBirth      DateTime
+  gender           String
+  phoneNumber      String?
+  address          String?
+  emergencyContact EmergencyContact?
+
   bloodType         String?
   allergies         Allergy[]
   chronicConditions ChronicCondition[]
   medications       Medication[]
-  
+
   blockchainAddress String?
-  
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  
-  medicalRecords    MedicalRecord[]      @relation("PatientRecords")
-  consentGrants     ConsentGrant[]       @relation("PatientConsents")
-  accessRequests    AccessRequest[]      @relation("PatientAccessRequests")
-  sharingSettings   SharingSettings?     @relation("PatientSharingSettings")
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  medicalRecords  MedicalRecord[]  @relation("PatientRecords")
+  consentGrants   ConsentGrant[]   @relation("PatientConsents")
+  accessRequests  AccessRequest[]  @relation("PatientAccessRequests")
+  sharingSettings SharingSettings? @relation("PatientSharingSettings")
+
   @@map("patients")
 }
 
 model Doctor {
-  id                 String             @id @default(auto()) @map("_id") @db.ObjectId
-  userId             String             @unique @db.ObjectId
-  user               User               @relation("UserDoctor", fields: [userId], references: [id], onDelete: Cascade)
-  
-  specialization     String
-  licenseNumber      String             @unique
-  hospitalId         String?
-  hospitalName       String?
-  phoneNumber        String?
-  
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @unique @db.ObjectId
+  user   User   @relation("UserDoctor", fields: [userId], references: [id], onDelete: Cascade)
+
+  specialization String
+  licenseNumber  String  @unique
+  hospitalId     String?
+  hospitalName   String?
+  phoneNumber    String?
+
   verificationStatus VerificationStatus @default(PENDING)
   verifiedAt         DateTime?
   verificationDocs   VerificationDoc[]
-  
-  blockchainAddress  String?
-  
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  
-  medicalRecords     MedicalRecord[]    @relation("DoctorRecords")
-  consentGrants      ConsentGrant[]     @relation("DoctorConsents")
-  accessRequests     AccessRequest[]    @relation("DoctorAccessRequests")
-  
+
+  blockchainAddress String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  medicalRecords MedicalRecord[] @relation("DoctorRecords")
+  consentGrants  ConsentGrant[]  @relation("DoctorConsents")
+  accessRequests AccessRequest[] @relation("DoctorAccessRequests")
+
   @@map("doctors")
 }
 
 model MedicalRecord {
-  id                String     @id @default(auto()) @map("_id") @db.ObjectId
-  patientId         String     @db.ObjectId
-  patient           Patient    @relation("PatientRecords", fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId          String?    @db.ObjectId
-  doctor            Doctor?    @relation("DoctorRecords", fields: [doctorId], references: [id], onDelete: SetNull)
-  
-  title             String
-  description       String?
-  recordType        RecordType
-  fileUrl           String     
-  fileHash          String     
-  fileName          String
-  fileSize          Int
-  mimeType          String
-  
-  blockchainTxHash  String?    
-  ipfsHash          String?    
-  
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-  isEncrypted       Boolean    @default(true)
-  
-  tags              String[]
-  
-  accessLogs        AccessLog[]
-  
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  patientId String  @db.ObjectId
+  patient   Patient @relation("PatientRecords", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId  String? @db.ObjectId
+  doctor    Doctor? @relation("DoctorRecords", fields: [doctorId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String?
+  recordType  RecordType
+  fileUrl     String
+  fileHash    String
+  fileName    String
+  fileSize    Int
+  mimeType    String
+
+  blockchainTxHash String?
+  ipfsHash         String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isEncrypted Boolean  @default(true)
+
+  tags String[]
+
+  accessLogs AccessLog[]
+
   @@map("medical_records")
 }
 
 model ConsentGrant {
-  id                String        @id @default(auto()) @map("_id") @db.ObjectId
-  patientId         String        @db.ObjectId
-  patient           Patient       @relation("PatientConsents", fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId          String        @db.ObjectId
-  doctor            Doctor        @relation("DoctorConsents", fields: [doctorId], references: [id], onDelete: Cascade)
-  
-  status            ConsentStatus @default(GRANTED)
-  accessType        AccessType    @default(READ)
-  purpose           String        
-  permissions       Permission[]
-  
-  grantedAt         DateTime      @default(now())
-  expiresAt         DateTime?
-  revokedAt         DateTime?
-  
-  blockchainTxHash  String?
-  
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  patientId String  @db.ObjectId
+  patient   Patient @relation("PatientConsents", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId  String  @db.ObjectId
+  doctor    Doctor  @relation("DoctorConsents", fields: [doctorId], references: [id], onDelete: Cascade)
+
+  status      ConsentStatus @default(GRANTED)
+  accessType  AccessType    @default(READ)
+  purpose     String
+  permissions Permission[]
+
+  grantedAt DateTime  @default(now())
+  expiresAt DateTime?
+  revokedAt DateTime?
+
+  blockchainTxHash String?
+
   allowedRecordTypes String[]
-  allowedRecordIds   String[]      @db.ObjectId
-  
+  allowedRecordIds   String[] @db.ObjectId
+
   @@map("consent_grants")
 }
 
 model AccessRequest {
-  id            String     @id @default(auto()) @map("_id") @db.ObjectId
-  doctorId      String     @db.ObjectId
-  doctor        Doctor     @relation("DoctorAccessRequests", fields: [doctorId], references: [id], onDelete: Cascade)
-  patientEmail  String     
-  patientId     String?    @db.ObjectId 
-  patient       Patient?   @relation("PatientAccessRequests", fields: [patientId], references: [id], onDelete: Cascade)
-  
-  purpose       String
-  accessType    AccessType @default(READ)
-  urgency       String?    
-  
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  doctorId     String   @db.ObjectId
+  doctor       Doctor   @relation("DoctorAccessRequests", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientEmail String
+  patientId    String?  @db.ObjectId
+  patient      Patient? @relation("PatientAccessRequests", fields: [patientId], references: [id], onDelete: Cascade)
+
+  purpose    String
+  accessType AccessType @default(READ)
+  urgency    String?
+
   requestedRecordTypes String[]
-  requestedDuration    Int?     
-  
-  status        String     @default("PENDING") 
-  requestedAt   DateTime   @default(now())
-  respondedAt   DateTime?
-  
-  response      String?    
-  
+  requestedDuration    Int?
+
+  status      String    @default("PENDING")
+  requestedAt DateTime  @default(now())
+  respondedAt DateTime?
+
+  response String?
+
   @@map("access_requests")
 }
 
 model SharingSettings {
-  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
-  patientId              String   @unique @db.ObjectId
-  patient                Patient  @relation("PatientSharingSettings", fields: [patientId], references: [id], onDelete: Cascade)
-  
-  allowEmergencyAccess   Boolean  @default(true)
-  autoApproveSpecialists Boolean  @default(false)
-  defaultConsentDuration Int?     
-  
-  allowedDataTypes       String[] 
-  restrictedDataTypes    String[] 
-  allowedSpecializations String[] 
-  
-  emergencyContacts      String[] @db.ObjectId
-  
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  
+  id        String  @id @default(auto()) @map("_id") @db.ObjectId
+  patientId String  @unique @db.ObjectId
+  patient   Patient @relation("PatientSharingSettings", fields: [patientId], references: [id], onDelete: Cascade)
+
+  allowEmergencyAccess   Boolean @default(true)
+  autoApproveSpecialists Boolean @default(false)
+  defaultConsentDuration Int?
+
+  allowedDataTypes       String[]
+  restrictedDataTypes    String[]
+  allowedSpecializations String[]
+
+  emergencyContacts String[] @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("sharing_settings")
 }
 
 model AccessLog {
-  id                String        @id @default(auto()) @map("_id") @db.ObjectId
-  recordId          String        @db.ObjectId
-  record            MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  accessorId        String        @db.ObjectId 
-  accessor          User          @relation(fields: [accessorId], references: [id], onDelete: Cascade)
-  
-  accessType        AccessType
-  purpose           String?
-  ipAddress         String?
-  userAgent         String?
-  
-  accessedFields    String[]   
-  downloadedFiles   String[]   
-  
-  accessedAt        DateTime   @default(now())
-  duration          Int?
-  
-  blockchainTxHash  String?
-  
+  id         String        @id @default(auto()) @map("_id") @db.ObjectId
+  recordId   String        @db.ObjectId
+  record     MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  accessorId String        @db.ObjectId
+  accessor   User          @relation(fields: [accessorId], references: [id], onDelete: Cascade)
+
+  accessType AccessType
+  purpose    String?
+  ipAddress  String?
+  userAgent  String?
+
+  accessedFields  String[]
+  downloadedFiles String[]
+
+  accessedAt DateTime @default(now())
+  duration   Int?
+
+  blockchainTxHash String?
+
   @@map("access_logs")
 }
 
 model AuditLog {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String   @db.ObjectId
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  action            String   
-  resourceType      String   
-  resourceId        String?  @db.ObjectId
-  
-  details           Json?    
-  ipAddress         String?
-  userAgent         String?
-  
-  previousValues    Json?
-  newValues         Json?
-  
-  timestamp         DateTime @default(now())
-  
-  blockchainTxHash  String?
-  
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  action       String
+  resourceType String
+  resourceId   String? @db.ObjectId
+
+  details   Json?
+  ipAddress String?
+  userAgent String?
+
+  previousValues Json?
+  newValues      Json?
+
+  timestamp DateTime @default(now())
+
+  blockchainTxHash String?
+
   @@map("audit_logs")
 }
 
 model Session {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String   @db.ObjectId
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   sessionToken String   @unique
   expires      DateTime
   deviceInfo   String?
   ipAddress    String?
   isActive     Boolean  @default(true)
-  
+
   createdAt    DateTime @default(now())
   lastActivity DateTime @default(now())
-  
+
   @@map("sessions")
 }
 
 model Notification {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  senderId    String?  @db.ObjectId
-  sender      User?    @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
-  recipientId String   @db.ObjectId
-  recipient   User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  
-  type        String   
-  title       String
-  message     String
-  data        Json?    
-  
-  isRead      Boolean  @default(false)
-  readAt      DateTime?
-  
-  priority    String   @default("NORMAL")
-  category    String   
-  
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime? 
-  
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  senderId    String? @db.ObjectId
+  sender      User?   @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+  recipientId String  @db.ObjectId
+  recipient   User    @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  type    String
+  title   String
+  message String
+  data    Json?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  priority String @default("NORMAL")
+  category String
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
   @@map("notifications")
 }
 
 model SystemConfig {
-  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
-  key                   String   @unique
-  value                 Json
-  description           String?
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  createdBy             String   @db.ObjectId
-  createdByUser         User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  key         String  @unique
+  value       Json
+  description String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String   @db.ObjectId
+  createdByUser User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
   @@map("system_config")
 }

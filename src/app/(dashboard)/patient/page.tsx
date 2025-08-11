@@ -12,7 +12,6 @@ import {
   Calendar,
   Heart,
   AlertCircle,
-  TrendingUp,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,8 @@ import { useNotificationsStore } from '@/stores/notifications-store';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import QuickActionCard from '@/components/dashboard/quick-action-card';
 import StatCard from '@/components/dashboard/stat-card';
+import { WalletConnect } from '@/components/blockchain/wallet-connect';
+import { RequireWallet } from '@/components/blockchain/require-wallet';
 
 interface DashboardStats {
   totalRecords: number;
@@ -165,212 +166,216 @@ export default function PatientDashboard() {
       <main className="lg:pl-64">
         <div className="px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Welcome back, {user.firstName}!
-            </h1>
-            <p className="text-gray-600">
-              Here's an overview of your health records and recent activity.
-            </p>
+          <div className="mb-8 px-6 pt-4 pb-8 bg-gradient-to-r from-blue-100 to-green-100 border-b shadow dark:bg-gradient-to-r dark:from-blue-900 dark:to-green-900 flex flex-col items-center justify-center gap-4 relative">
+            <div className="absolute left-6 top-4">
+              <h1 className="text-2xl font-bold text-blue-900 dark:text-blue-200">
+                Welcome back, {user.firstName}!
+              </h1>
+              <p className="text-green-800 dark:text-green-200">
+                Here&apos;s an overview of your health records and recent activity.
+              </p>
+            </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard
-              icon={FileText}
-              title="Total Records"
-              value={stats.totalRecords}
-              subtitle="Medical documents"
-              trend={{ value: "+2", isPositive: true }}
-            />
-            <StatCard
-              icon={Shield}
-              title="Active Consents"
-              value={stats.activeConsents}
-              subtitle="Shared with providers"
-            />
-            <StatCard
-              icon={Activity}
-              title="Recent Access"
-              value={stats.recentAccess}
-              subtitle="This month"
-            />
-            <StatCard
-              icon={Calendar}
-              title="Appointments"
-              value={stats.upcomingAppointments}
-              subtitle="This week"
-            />
-          </div>
-
-          {/* Quick Actions */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <QuickActionCard
-                icon={Upload}
-                title="Upload Records"
-                description="Add new medical documents"
-                onClick={() => router.push('/patient/records?action=upload')}
-                color="blue"
+          <RequireWallet>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <StatCard
+                icon={FileText}
+                title="Total Records"
+                value={stats.totalRecords}
+                subtitle="Medical documents"
+                trend={{ value: "+2", isPositive: true }}
               />
-              <QuickActionCard
-                icon={Share2}
-                title="Share Data"
-                description="Grant provider access"
-                onClick={() => router.push('/patient/sharing')}
-                color="green"
-              />
-              <QuickActionCard
+              <StatCard
                 icon={Shield}
-                title="Manage Consent"
-                description="Control data permissions"
-                onClick={() => router.push('/patient/consent')}
-                color="purple"
+                title="Active Consents"
+                value={stats.activeConsents}
+                subtitle="Shared with providers"
               />
-              <QuickActionCard
+              <StatCard
                 icon={Activity}
-                title="View Activity"
-                description="See access history"
-                onClick={() => router.push('/patient/audit')}
-                color="orange"
+                title="Recent Access"
+                value={stats.recentAccess}
+                subtitle="This month"
+              />
+              <StatCard
+                icon={Calendar}
+                title="Appointments"
+                value={stats.upcomingAppointments}
+                subtitle="This week"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Recent Activity */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => router.push('/patient/audit')}
-                  >
-                    View All
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {isLoading ? (
-                    <div className="p-6 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                      <p className="text-gray-600 mt-2">Loading activity...</p>
-                    </div>
-                  ) : recentActivity.length > 0 ? (
-                    <div className="divide-y divide-gray-100">
-                      {recentActivity.map((activity) => (
-                        <ActivityItem key={activity.id} activity={activity} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-6 text-center text-gray-500">
-                      No recent activity
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            {/* Quick Actions */}
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <QuickActionCard
+                  icon={Upload}
+                  title="Upload Records"
+                  description="Add new medical documents"
+                  onClick={() => router.push('/patient/records?action=upload')}
+                  color="blue"
+                />
+                <QuickActionCard
+                  icon={Share2}
+                  title="Share Data"
+                  description="Grant provider access"
+                  onClick={() => router.push('/patient/sharing')}
+                  color="green"
+                />
+                <QuickActionCard
+                  icon={Shield}
+                  title="Manage Consent"
+                  description="Control data permissions"
+                  onClick={() => router.push('/patient/consent')}
+                  color="purple"
+                />
+                <QuickActionCard
+                  icon={Activity}
+                  title="View Activity"
+                  description="See access history"
+                  onClick={() => router.push('/patient/audit')}
+                  color="orange"
+                />
+              </div>
             </div>
 
-            {/* Health Summary & Notifications */}
-            <div className="space-y-6">
-              {/* Health Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <Heart className="h-5 w-5 text-red-500" />
-                    Health Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-gray-600">Blood Type</span>
-                    <span className="font-medium">{user.patient?.bloodType || 'Not specified'}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-gray-600">Allergies</span>
-                    <span className="font-medium">
-                      {user.patient?.allergies?.length || 0} recorded
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-gray-600">Conditions</span>
-                    <span className="font-medium">
-                      {user.patient?.chronicConditions?.length || 0} active
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-sm text-gray-600">Medications</span>
-                    <span className="font-medium">
-                      {user.patient?.medications?.length || 0} current
-                    </span>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-4"
-                    onClick={() => router.push('/patient/profile')}
-                  >
-                    Update Health Info
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Recent Notifications */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg font-semibold">
-                    Notifications
-                    {unreadCount > 0 && (
-                      <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                        {unreadCount}
-                      </span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Recent Activity */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="text-lg font-semibold">Recent Activity</CardTitle>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => router.push('/patient/audit')}
+                    >
+                      View All
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {isLoading ? (
+                      <div className="p-6 text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="text-gray-600 mt-2">Loading activity...</p>
+                      </div>
+                    ) : recentActivity.length > 0 ? (
+                      <div className="divide-y divide-gray-100">
+                        {recentActivity.map((activity) => (
+                          <ActivityItem key={activity.id} activity={activity} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center text-gray-500">
+                        No recent activity
+                      </div>
                     )}
-                  </CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => router.push('/notifications')}
-                  >
-                    View All
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {notifications.slice(0, 3).map((notification) => (
-                    <div key={notification.id} className="flex items-start space-x-3 py-3">
-                      <div className={cn(
-                        'p-1 rounded-full',
-                        notification.isRead ? 'bg-gray-100' : 'bg-blue-100'
-                      )}>
-                        <AlertCircle className={cn(
-                          'h-4 w-4',
-                          notification.isRead ? 'text-gray-400' : 'text-blue-600'
-                        )} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
-                          {notification.title}
-                        </p>
-                        <p className="text-xs text-gray-600 truncate">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(notification.createdAt)}
-                        </p>
-                      </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Health Summary & Notifications */}
+              <div className="space-y-6">
+                {/* Health Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                      <Heart className="h-5 w-5 text-red-500" />
+                      Health Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-gray-600">Blood Type</span>
+                      <span className="font-medium">{user.patient?.bloodType || 'Not specified'}</span>
                     </div>
-                  ))}
-                  
-                  {notifications.length === 0 && (
-                    <p className="text-gray-500 text-center py-4">
-                      No notifications
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-gray-600">Allergies</span>
+                      <span className="font-medium">
+                        {user.patient?.allergies?.length || 0} recorded
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-gray-600">Conditions</span>
+                      <span className="font-medium">
+                        {user.patient?.chronicConditions?.length || 0} active
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-sm text-gray-600">Medications</span>
+                      <span className="font-medium">
+                        {user.patient?.medications?.length || 0} current
+                      </span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-4"
+                      onClick={() => router.push('/patient/profile')}
+                    >
+                      Update Health Info
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Recent Notifications */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle className="text-lg font-semibold">
+                      Notifications
+                      {unreadCount > 0 && (
+                        <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </CardTitle>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => router.push('/notifications')}
+                    >
+                      View All
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {notifications.slice(0, 3).map((notification) => (
+                      <div key={notification.id} className="flex items-start space-x-3 py-3">
+                        <div className={cn(
+                          'p-1 rounded-full',
+                          notification.isRead ? 'bg-gray-100' : 'bg-blue-100'
+                        )}>
+                          <AlertCircle className={cn(
+                            'h-4 w-4',
+                            notification.isRead ? 'text-gray-400' : 'text-blue-600'
+                          )} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900">
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-gray-600 truncate">
+                            {notification.message}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(notification.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {notifications.length === 0 && (
+                      <p className="text-gray-500 text-center py-4">
+                        No notifications
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-          </div>
+          </RequireWallet>
         </div>
       </main>
     </div>

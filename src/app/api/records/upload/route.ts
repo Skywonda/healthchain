@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getBlockchainService } from '@/lib/blockchain';
 import { getServerUser } from '@/middleware';
+import { medicalRecordUploadSchema } from './validation';
+import type { RecordType } from '@/types/medical-records';
 
 const prisma = new PrismaClient();
 
@@ -16,12 +18,23 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File;
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
-    const recordType = formData.get('recordType') as string;
+    const recordType = formData.get('recordType') as RecordType;
     const tags = JSON.parse(formData.get('tags') as string || '[]');
     const walletAddress = formData.get('walletAddress') as string;
 
-    if (!file || !title || !recordType || !walletAddress) {
-      return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+    const parseResult = medicalRecordUploadSchema.safeParse({
+      file,
+      title,
+      description,
+      recordType,
+      tags,
+      walletAddress,
+    });
+    if (!parseResult.success) {
+      return NextResponse.json({
+        message: 'Validation failed',
+        errors: parseResult.error.flatten().fieldErrors,
+      }, { status: 400 });
     }
 
     const blockchainService = getBlockchainService();
@@ -38,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const blockchainResult = await blockchainService.createMedicalRecord(
       file,
-      recordType as any,
+      recordType,
       metadata
     );
 
@@ -47,7 +60,7 @@ export async function POST(request: NextRequest) {
         patientId: user.patientId!,
         title,
         description,
-        recordType: recordType as any,
+        recordType,
         fileName: file.name,
         fileSize: file.size,
         mimeType: file.type,

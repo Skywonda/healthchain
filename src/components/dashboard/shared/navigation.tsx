@@ -15,12 +15,13 @@ import {
   Menu,
   X,
   Bell,
-  TestTube 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/stores/auth-store';
 import { useNotificationsStore } from '@/stores/notifications-store';
-import { WalletStatus } from '@/components/blockchain/wallet-status';
+import { WalletConnect } from '@/components/blockchain/wallet-connect';
+import { Modal } from '@/components/ui/modal';
+import { useWalletConnection } from '@/hooks/use-blockchain';
 import { cn, getInitials } from '@/lib/utils';
 
 interface NavigationProps {
@@ -29,10 +30,12 @@ interface NavigationProps {
 
 export function Navigation({ userRole }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { logout, user } = useAuthStore();
   const { unreadCount } = useNotificationsStore();
+  const { isConnected, address } = useWalletConnection();
 
   const getNavigationItems = () => {
     const baseItems = [
@@ -46,8 +49,6 @@ export function Navigation({ userRole }: NavigationProps) {
         { href: '/patient/consent', icon: Shield, label: 'Consent Management' },
         { href: '/patient/sharing', icon: Share2, label: 'Data Sharing' },
         { href: '/patient/audit', icon: Activity, label: 'Access Log' },
-        // Temporary test page - remove in production
-        { href: '/test-wallet', icon: TestTube, label: 'Wallet Test' },
       ];
     }
 
@@ -57,8 +58,6 @@ export function Navigation({ userRole }: NavigationProps) {
         { href: '/doctor/patients', icon: Users, label: 'Patients' },
         { href: '/doctor/requests', icon: Shield, label: 'Access Requests' },
         { href: '/doctor/reports', icon: FileText, label: 'Medical Reports' },
-        // Temporary test page - remove in production
-        { href: '/test-wallet', icon: TestTube, label: 'Wallet Test' },
       ];
     }
 
@@ -68,8 +67,6 @@ export function Navigation({ userRole }: NavigationProps) {
         { href: '/admin/verification', icon: Shield, label: 'Verification' },
         { href: '/admin/system', icon: Settings, label: 'System' },
         { href: '/admin/audit', icon: Activity, label: 'Audit Trail' },
-        // Temporary test page - remove in production
-        { href: '/test-wallet', icon: TestTube, label: 'Wallet Test' },
       ];
     }
 
@@ -81,6 +78,7 @@ export function Navigation({ userRole }: NavigationProps) {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      localStorage.removeItem('user');
       logout();
       router.push('/login');
     } catch (error) {
@@ -157,7 +155,20 @@ export function Navigation({ userRole }: NavigationProps) {
           {/* Wallet status section */}
           <div className="p-4 border-t border-b">
             <div className="text-xs font-medium text-gray-700 mb-2">Blockchain</div>
-            <WalletStatus />
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-md transition hover:bg-accent focus:outline-none focus:ring-2 focus:ring-blue-400"
+              onClick={() => setWalletModalOpen(true)}
+              aria-label="Wallet actions"
+            >
+              <span className={cn(
+                'w-2 h-2 rounded-full',
+                isConnected ? 'bg-green-500' : 'bg-red-500'
+              )} />
+              <span className="font-mono text-xs truncate">
+                {isConnected && address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected'}
+              </span>
+              <span className="ml-auto text-xs text-blue-600 underline">{isConnected ? 'Manage' : 'Connect'}</span>
+            </button>
           </div>
 
           {/* User section */}
@@ -198,6 +209,10 @@ export function Navigation({ userRole }: NavigationProps) {
           </div>
         </div>
       </aside>
+
+      <Modal isOpen={walletModalOpen} onClose={() => setWalletModalOpen(false)} title="Wallet Connection" size="md">
+        <WalletConnect showCard onConnectSuccess={() => setWalletModalOpen(false)} />
+      </Modal>
 
       {/* Mobile overlay */}
       {isMobileMenuOpen && (

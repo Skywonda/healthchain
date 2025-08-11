@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // lib/ipfs.ts
 import { create as createIPFS } from 'kubo-rpc-client';
 
@@ -7,8 +8,14 @@ interface IPFSConfig {
   projectSecret?: string;
 }
 
+let nodeCrypto: typeof import('crypto') | undefined;
+if (typeof window === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  nodeCrypto = require('crypto');
+}
+
 export class IPFSService {
-  private ipfs: any;
+  private ipfs: ReturnType<typeof createIPFS>;
   private isInitialized = false;
 
   constructor(config: IPFSConfig) {
@@ -44,9 +51,9 @@ export class IPFSService {
 
     try {
       const buffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(buffer);
+      const uint8Array = new Uint8Array(buffer as ArrayBuffer);
       
-      let dataToUpload = uint8Array;
+      let dataToUpload;
       let encryptionKey: string | undefined;
 
       if (encrypt) {
@@ -100,7 +107,7 @@ export class IPFSService {
     }
   }
 
-  async uploadJSON(data: any, encrypt: boolean = true): Promise<{
+  async uploadJSON(data: unknown, encrypt: boolean = true): Promise<{
     hash: string;
     size: number;
     encryptionKey?: string;
@@ -112,7 +119,7 @@ export class IPFSService {
     return this.uploadFile(file, encrypt);
   }
 
-  async downloadJSON(hash: string, encryptionKey?: string): Promise<any> {
+  async downloadJSON(hash: string, encryptionKey?: string): Promise<unknown> {
     const data = await this.downloadFile(hash, encryptionKey);
     const jsonString = new TextDecoder().decode(data);
     return JSON.parse(jsonString);
@@ -166,7 +173,7 @@ export class IPFSService {
       crypto.getRandomValues(array);
       return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
     } else {
-      return require('crypto').randomBytes(32).toString('hex');
+      return nodeCrypto!.randomBytes(32).toString('hex');
     }
   }
 
@@ -185,13 +192,12 @@ export class IPFSService {
       result.set(new Uint8Array(encrypted), iv.length);
       return result;
     } else {
-      const crypto = require('crypto');
-      const iv = crypto.randomBytes(12);
-      const cipher = crypto.createCipher('aes-256-gcm', Buffer.from(key, 'hex'));
+      const iv = nodeCrypto!.randomBytes(12);
+      const cipher = nodeCrypto!.createCipheriv('aes-256-gcm', new Uint8Array(Buffer.from(key, 'hex')), iv);
       cipher.setAAD(Buffer.from('healthchain'));
       
       const encrypted = Buffer.concat([
-        cipher.update(Buffer.from(data)),
+        cipher.update(new Uint8Array(data)),
         cipher.final(),
       ]);
       
@@ -214,17 +220,16 @@ export class IPFSService {
       
       return new Uint8Array(decrypted);
     } else {
-      const crypto = require('crypto');
       const iv = encryptedData.slice(0, 12);
       const tag = encryptedData.slice(12, 28);
       const data = encryptedData.slice(28);
       
-      const decipher = crypto.createDecipher('aes-256-gcm', Buffer.from(key, 'hex'));
+      const decipher = nodeCrypto!.createDecipheriv('aes-256-gcm', new Uint8Array(Buffer.from(key, 'hex')), iv);
       decipher.setAuthTag(Buffer.from(tag));
       decipher.setAAD(Buffer.from('healthchain'));
       
       const decrypted = Buffer.concat([
-        decipher.update(Buffer.from(data)),
+        decipher.update(new Uint8Array(data)),
         decipher.final(),
       ]);
       

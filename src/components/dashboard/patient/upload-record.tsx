@@ -6,22 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input, Select, TextArea } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { toast } from 'react-hot-toast';
+import { RECORD_TYPE_OPTIONS } from '@/lib/constants';
 
 interface UploadRecordProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
-
-const RECORD_TYPES = [
-  { value: '', label: 'Select record type' },
-  { value: 'MEDICAL_REPORT', label: 'Medical Report' },
-  { value: 'LAB_RESULT', label: 'Lab Result' },
-  { value: 'PRESCRIPTION', label: 'Prescription' },
-  { value: 'IMAGING', label: 'Medical Imaging' },
-  { value: 'VACCINE_RECORD', label: 'Vaccine Record' },
-  { value: 'ALLERGY_INFO', label: 'Allergy Information' },
-];
 
 export function UploadRecord({ isOpen, onClose, onSuccess }: UploadRecordProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -83,6 +74,7 @@ export function UploadRecord({ isOpen, onClose, onSuccess }: UploadRecordProps) 
       });
 
       const result = await response.json();
+      console.log(result);
 
       if (!response.ok) {
         throw new Error(result.message || 'Upload failed');
@@ -160,7 +152,7 @@ export function UploadRecord({ isOpen, onClose, onSuccess }: UploadRecordProps) 
           label="Record Type"
           value={recordType}
           onChange={(e) => setRecordType(e.target.value)}
-          options={RECORD_TYPES}
+          options={RECORD_TYPE_OPTIONS}
           required
           disabled={isUploading}
         />

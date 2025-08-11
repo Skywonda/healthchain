@@ -14,7 +14,7 @@ export class AuthService {
     return bcrypt.compare(password, hash);
   }
 
-  static async generateJWT(payload: any, expiresIn: string = '24h'): Promise<string> {
+  static async generateJWT(payload: Record<string, unknown>, expiresIn: string = '24h'): Promise<string> {
     return new SignJWT(payload)
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
@@ -22,7 +22,7 @@ export class AuthService {
       .sign(JWT_SECRET);
   }
 
-  static async verifyJWT(token: string): Promise<any> {
+  static async verifyJWT(token: string): Promise<Record<string, unknown>> {
     try {
       const { payload } = await jwtVerify(token, JWT_SECRET);
       return payload;
